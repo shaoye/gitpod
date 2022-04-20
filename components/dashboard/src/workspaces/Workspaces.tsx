@@ -13,8 +13,11 @@ import { WorkspaceEntry } from "./WorkspaceEntry";
 import { getGitpodService } from "../service/service";
 import { ItemsList } from "../components/ItemsList";
 import { TeamsContext } from "../teams/teams-context";
+import { UserContext } from "../user-context";
+import { User } from "@gitpod/gitpod-protocol";
 import { useLocation } from "react-router";
 import { StartWorkspaceModalContext, StartWorkspaceModalKeyBinding } from "./start-workspace-modal-context";
+import SelectIDEModal from "../settings/SelectIDEModal";
 
 export interface WorkspacesProps {}
 
@@ -27,6 +30,7 @@ export interface WorkspacesState {
 export default function () {
     const location = useLocation();
 
+    const { user } = useContext(UserContext);
     const { teams } = useContext(TeamsContext);
     const [activeWorkspaces, setActiveWorkspaces] = useState<WorkspaceInfo[]>([]);
     const [inactiveWorkspaces, setInactiveWorkspaces] = useState<WorkspaceInfo[]>([]);
@@ -43,6 +47,8 @@ export default function () {
     return (
         <>
             <Header title="Workspaces" subtitle="Manage recent and stopped workspaces." />
+
+            {user && User.isOnboardingUser(user!) && <SelectIDEModal />}
 
             {workspaceModel?.initialized &&
                 (activeWorkspaces.length > 0 || inactiveWorkspaces.length > 0 || workspaceModel.searchTerm ? (
