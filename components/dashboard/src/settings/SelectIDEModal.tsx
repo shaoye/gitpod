@@ -7,28 +7,27 @@
 import { useState, useContext } from "react";
 import { Link } from "react-router-dom";
 import { User } from "@gitpod/gitpod-protocol";
-import SelectIDE from "./SelectIDE";
+import SelectIDE, { updateUserIDEInfo } from "./SelectIDE";
 import Modal from "../components/Modal";
-import updateUserIDEInfo from "./updateUserIDEInfo";
 import { UserContext } from "../user-context";
 
 export default function () {
     const { user, setUser } = useContext(UserContext);
     const [visible, setVisible] = useState(true);
-    const [useLatest, setUseLatest] = useState(false);
+
+    const actualUpdateUserIDEInfo = async (user: User, selectedIde: string, useLatestVersion: boolean) => {
+        const newUserData = await updateUserIDEInfo(user, selectedIde, useLatestVersion);
+        setUser({ ...newUserData });
+    };
 
     const handleContinue = async () => {
         setVisible(false);
-
-        if (!user || !User.isOnboardingUser(user)) {
+        if (!user || User.hasPreferredIde(user)) {
             return;
         }
-
+        // TODO: We need to get defaultIde in ideOptions..
         const defaultIde = "code";
-
-        await updateUserIDEInfo(user, defaultIde, useLatest);
-
-        setUser({ ...user });
+        await actualUpdateUserIDEInfo(user, defaultIde, false);
     };
 
     return (
@@ -45,7 +44,7 @@ export default function () {
                     </Link>
                     .
                 </p>
-                <SelectIDE onSelectUseLatest={setUseLatest} />
+                <SelectIDE updateUserContext={false} />
             </div>
             <div className="flex justify-end mt-6">
                 <button onClick={handleContinue} className="ml-2">

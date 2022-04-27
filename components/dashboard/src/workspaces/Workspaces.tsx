@@ -44,11 +44,13 @@ export default function () {
         })();
     }, [teams, location]);
 
+    const isOnboardingUser = user && User.isOnboardingUser(user);
+
     return (
         <>
             <Header title="Workspaces" subtitle="Manage recent and stopped workspaces." />
 
-            {user && User.isOnboardingUser(user!) && <SelectIDEModal />}
+            {isOnboardingUser && <SelectIDEModal />}
 
             {workspaceModel?.initialized &&
                 (activeWorkspaces.length > 0 || inactiveWorkspaces.length > 0 || workspaceModel.searchTerm ? (

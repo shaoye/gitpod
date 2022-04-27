@@ -97,7 +97,10 @@ export namespace User {
     }
 
     export function hasPreferredIde(user: User) {
-        return typeof user?.additionalData?.ideSettings?.defaultIde !== "undefined";
+        return (
+            typeof user?.additionalData?.ideSettings?.defaultIde !== "undefined" ||
+            typeof user?.additionalData?.ideSettings?.useLatestVersion !== "undefined"
+        );
     }
 
     export function isOnboardingUser(user: User) {
@@ -105,7 +108,11 @@ export namespace User {
     }
 
     export function migrationIDESettings(user: User) {
-        if (!user?.additionalData?.ideSettings || user.additionalData.ideSettings.settingVersion === "2.0") {
+        if (
+            !user?.additionalData?.ideSettings ||
+            Object.keys(user.additionalData.ideSettings).length === 0 ||
+            user.additionalData.ideSettings.settingVersion === "2.0"
+        ) {
             return;
         }
         const newIDESettings: IDESettings = {

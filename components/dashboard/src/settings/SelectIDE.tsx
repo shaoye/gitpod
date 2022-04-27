@@ -13,26 +13,41 @@ import { getGitpodService } from "../service/service";
 import { UserContext } from "../user-context";
 import CheckBox from "../components/CheckBox";
 import { User } from "@gitpod/gitpod-protocol";
-import updateUserIDEInfo from "./updateUserIDEInfo";
 
 interface SelectIDEProps {
-    onSelectUseLatest?: (value: boolean) => void;
+    updateUserContext?: boolean;
 }
 
+export const updateUserIDEInfo = async (user: User, selectedIde: string, useLatestVersion: boolean) => {
+    const additionalData = user?.additionalData ?? {};
+    const settings = additionalData.ideSettings ?? {};
+    settings.settingVersion = "2.0";
+    settings.defaultIde = selectedIde;
+    settings.useLatestVersion = useLatestVersion;
+    additionalData.ideSettings = settings;
+    getGitpodService()
+        .server.trackEvent({
+            event: "ide_configuration_changed",
+            properties: settings,
+        })
+        .then()
+        .catch(console.error);
+    return getGitpodService().server.updateLoggedInUser({ additionalData });
+};
+
 export default function SelectIDE(props: SelectIDEProps) {
-    const { onSelectUseLatest } = props;
+    const { user, setUser } = useContext(UserContext);
 
-    const { user } = useContext(UserContext);
+    user && User.migrationIDESettings(user);
 
-    useEffect(() => {
-        if (user) {
-            User.migrationIDESettings(user);
-        }
-    }, [user]);
+    const actualUpdateUserIDEInfo = async (user: User, selectedIde: string, useLatestVersion: boolean) => {
+        const newUserData = await updateUserIDEInfo(user, selectedIde, useLatestVersion);
+        props.updateUserContext && setUser({ ...newUserData });
+    };
 
     const [defaultIde, setDefaultIde] = useState<string>(user?.additionalData?.ideSettings?.defaultIde || "code");
     const actuallySetDefaultIde = async (value: string) => {
-        await updateUserIDEInfo(user!, value, useLatestVersion);
+        await actualUpdateUserIDEInfo(user!, value, useLatestVersion);
         setDefaultIde(value);
     };
 
@@ -40,10 +55,7 @@ export default function SelectIDE(props: SelectIDEProps) {
         user?.additionalData?.ideSettings?.useLatestVersion ?? false,
     );
     const actuallySetUseLatestVersion = async (value: boolean) => {
-        if (onSelectUseLatest) {
-            onSelectUseLatest(value);
-        }
-        await updateUserIDEInfo(user!, defaultIde, value);
+        await actualUpdateUserIDEInfo(user!, defaultIde, value);
         setUseLatestVersion(value);
     };
 
@@ -70,7 +82,6 @@ export default function SelectIDE(props: SelectIDEProps) {
                             <div className={`my-4 gap-3 flex flex-wrap max-w-2xl`}>
                                 {allIdeOptions.map(([id, option]) => {
                                     const selected = defaultIde === id;
-                                    console.log(id, defaultIde, selected);
                                     const onSelect = () => actuallySetDefaultIde(id);
                                     return renderIdeOption(option, selected, onSelect);
                                 })}
