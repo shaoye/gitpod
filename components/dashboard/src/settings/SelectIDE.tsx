@@ -16,9 +16,17 @@ import { User } from "@gitpod/gitpod-protocol";
 
 interface SelectIDEProps {
     updateUserContext?: boolean;
+    location?: IDEChangedTrackLocation;
 }
 
-export const updateUserIDEInfo = async (user: User, selectedIde: string, useLatestVersion: boolean) => {
+export type IDEChangedTrackLocation = "workspace_list" | "workspace_start" | "preferences";
+
+export const updateUserIDEInfo = async (
+    user: User,
+    selectedIde: string,
+    useLatestVersion: boolean,
+    location: IDEChangedTrackLocation,
+) => {
     const additionalData = user?.additionalData ?? {};
     const settings = additionalData.ideSettings ?? {};
     settings.settingVersion = "2.0";
@@ -28,7 +36,10 @@ export const updateUserIDEInfo = async (user: User, selectedIde: string, useLate
     getGitpodService()
         .server.trackEvent({
             event: "ide_configuration_changed",
-            properties: settings,
+            properties: {
+                ...settings,
+                location,
+            },
         })
         .then()
         .catch(console.error);
@@ -44,7 +55,12 @@ export default function SelectIDE(props: SelectIDEProps) {
     }, []);
 
     const actualUpdateUserIDEInfo = async (user: User, selectedIde: string, useLatestVersion: boolean) => {
-        const newUserData = await updateUserIDEInfo(user, selectedIde, useLatestVersion);
+        const newUserData = await updateUserIDEInfo(
+            user,
+            selectedIde,
+            useLatestVersion,
+            props.location ?? "preferences",
+        );
         props.updateUserContext && setUser({ ...newUserData });
     };
 
