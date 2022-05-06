@@ -26,6 +26,7 @@ func configmap(ctx *common.RenderContext) ([]runtime.Object, error) {
 	typeBrowser := "browser"
 	typeDesktop := "desktop"
 
+	code := "code"
 	codeDesktop := "code-desktop"
 
 	intellij := "intellij"
@@ -70,6 +71,13 @@ func configmap(ctx *common.RenderContext) ([]runtime.Object, error) {
 					DesktopIDEs:       []string{intellij, goland, pycharm, phpstorm},
 					InstallationSteps: []string{
 						"If you don't see an open dialog in your browser, make sure you have the <a target='_blank' class='gp-link' href='https://www.gitpod.io/docs/ides-and-editors/jetbrains-gateway#getting-started-jetbrains-gateway'>JetBrains Gateway with Gitpod Plugin</a> installed on your machine, and then click <b>${OPEN_LINK_LABEL}</b> below.",
+					},
+				},
+				"browser-extension": {
+					DefaultDesktopIDE: codeDesktop,
+					DesktopIDEs:       []string{code, codeDesktop, intellij, goland, pycharm, phpstorm},
+					InstallationSteps: []string{
+						"If you don't see an open dialog in your browser, make sure you have <a target='_blank' class='gp-link' href='https://code.visualstudio.com/download'>VS Code</a> or <a target='_blank' class='gp-link' href='https://www.gitpod.io/docs/ides-and-editors/jetbrains-gateway#getting-started-jetbrains-gateway'>JetBrains Gateway with Gitpod Plugin</a> installed on your machine, and then click <b>${OPEN_LINK_LABEL}</b> below.",
 					},
 				},
 			},
