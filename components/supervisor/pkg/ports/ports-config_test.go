@@ -29,17 +29,21 @@ func TestPortsConfig(t *testing.T) {
 			Desc: "workspace port config",
 			WorkspacePorts: []*gitpod.PortConfig{
 				{
-					Port:       9229,
-					OnOpen:     "ignore",
-					Visibility: "public",
+					Port:        9229,
+					OnOpen:      "ignore",
+					Visibility:  "public",
+					Description: "Used when debugging Node.",
+					Name:        "Node Debugger",
 				},
 			},
 			Expectation: &PortConfigTestExpectations{
 				WorkspaceConfigs: []*gitpod.PortConfig{
 					{
-						Port:       9229,
-						OnOpen:     "ignore",
-						Visibility: "public",
+						Port:        9229,
+						OnOpen:      "ignore",
+						Visibility:  "public",
+						Description: "Used when debugging Node.",
+						Name:        "Node Debugger",
 					},
 				},
 			},
