@@ -48,6 +48,7 @@ import { parseProps } from "./start/StartWorkspace";
 import SelectIDEModal from "./settings/SelectIDEModal";
 import { StartPage, StartPhase } from "./start/StartPage";
 import { isGitpodIo } from "./utils";
+import FeedbackFormModal from "./feedback-form/FeedbackModal";
 
 const Setup = React.lazy(() => import(/* webpackPrefetch: true */ "./Setup"));
 const Workspaces = React.lazy(() => import(/* webpackPrefetch: true */ "./workspaces/Workspaces"));
@@ -372,6 +373,7 @@ function App() {
                     <AdminRoute path="/admin/license" component={License} />
                     <AdminRoute path="/admin/settings" component={AdminSettings} />
 
+                    <Route path="/feedback" exact component={FeedbackFormModal} />
                     <Route path={["/", "/login"]} exact>
                         <Redirect to={workspacesPathMain} />
                     </Route>
