@@ -123,6 +123,7 @@ import {
 } from "@gitpod/ws-manager/lib/core_pb";
 import * as crypto from "crypto";
 import { inject, injectable } from "inversify";
+import Stripe from "stripe";
 import { URL } from "url";
 import { v4 as uuidv4 } from "uuid";
 import { Disposable, ResponseError } from "vscode-jsonrpc";
@@ -238,6 +239,8 @@ export class GitpodServerImpl implements GitpodServerWithTracing, Disposable {
 
     protected readonly disposables = new DisposableCollection();
 
+    protected stripe: Stripe | undefined;
+
     dispose(): void {
         this.disposables.dispose();
     }
@@ -259,6 +262,13 @@ export class GitpodServerImpl implements GitpodServerWithTracing, Disposable {
         this.clientHeaderFields = clientHeaderFields;
         (this.clientMetadata as any) = clientMetadata;
         this.connectionCtx = connectionCtx;
+
+        this.stripe = new Stripe(
+            "sk_test_51Kxur7GadRXm50o3CmTRVsT6CLjwEeJXlYkfv6Gj4DBn6iYUx2PYIT48cVR9vSTKK5ohpA5BugrqNMQOVW3t5RH800KMuOyDgT",
+            {
+                apiVersion: "2020-08-27",
+            },
+        );
 
         log.debug({ userId: this.user?.id }, `clientRegion: ${clientHeaderFields.clientRegion}`);
         log.debug({ userId: this.user?.id }, "initializeClient");
@@ -3017,6 +3027,13 @@ export class GitpodServerImpl implements GitpodServerWithTracing, Disposable {
     }
     async getGithubUpgradeUrls(ctx: TraceContext): Promise<GithubUpgradeURL[]> {
         throw new ResponseError(ErrorCodes.SAAS_FEATURE, `Not implemented in this version`);
+    }
+    async getStripeClientSecret(): Promise<string | undefined> {
+        if (!this.stripe) {
+            throw new Error("Stripe is not properly set up!");
+        }
+        const setupIntent = await this.stripe.setupIntents.create({ usage: "on_session" });
+        return setupIntent.client_secret || undefined;
     }
     //
     //#endregion

@@ -175,6 +175,7 @@ function getConfig(config: RateLimiterConfig): RateLimiterConfig {
         getAvailableCoupons: { group: "default", points: 1 },
         getChargebeeSiteId: { group: "default", points: 1 },
         getGithubUpgradeUrls: { group: "default", points: 1 },
+        getStripeClientSecret: { group: "default", points: 1 },
         getRemainingUsageHours: { group: "default", points: 1 },
         getShowPaymentUI: { group: "default", points: 1 },
         isChargebeeCustomer: { group: "default", points: 1 },
