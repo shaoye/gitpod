@@ -61,6 +61,7 @@ func BuildTarbal(ctx context.Context, src string, dst string, fullWorkspaceBacku
 		UIDMaps:     uidMaps,
 		GIDMaps:     gidMaps,
 		Compression: archive.Uncompressed,
+		CopyPass:    true,
 	})
 	if err != nil {
 		return
