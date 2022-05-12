@@ -149,6 +149,7 @@ func (wbs *InWorkspaceServiceServer) Start() error {
 		return xerrors.Errorf("cannot create ServiceLocDaemon: %w", err)
 	}
 
+	time.Sleep(2 * time.Minute)
 	socketFN := filepath.Join(wbs.Session.ServiceLocDaemon, "daemon.sock")
 	if _, err := os.Stat(socketFN); err == nil {
 		// a former ws-daemon instance left their sockets laying around.
