@@ -7,31 +7,26 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"net"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/heptiolabs/healthcheck"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/health"
+	grpc_health "google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 
+	"github.com/gitpod-io/gitpod/common-go/baseserver"
 	common_grpc "github.com/gitpod-io/gitpod/common-go/grpc"
 	"github.com/gitpod-io/gitpod/common-go/log"
-	"github.com/gitpod-io/gitpod/common-go/pprof"
 	"github.com/gitpod-io/gitpod/ws-daemon/pkg/config"
 	"github.com/gitpod-io/gitpod/ws-daemon/pkg/daemon"
 )
+
+const grpcServerName = "wsdaemon"
 
 // serveCmd represents the serve command
 var runCmd = &cobra.Command{
@@ -43,85 +38,34 @@ var runCmd = &cobra.Command{
 		if err != nil {
 			log.WithError(err).Fatal("cannot read configuration. Maybe missing --config?")
 		}
+
 		reg := prometheus.NewRegistry()
+		reg.MustRegister(
+			collectors.NewGoCollector(),
+			collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+		)
+
 		dmn, err := daemon.NewDaemon(cfg.Daemon, prometheus.WrapRegistererWithPrefix("gitpod_ws_daemon_", reg))
 		if err != nil {
 			log.WithError(err).Fatal("cannot create daemon")
 		}
 
-		common_grpc.SetupLogging()
-
-		grpcMetrics := grpc_prometheus.NewServerMetrics()
-		grpcMetrics.EnableHandlingTimeHistogram()
-		reg.MustRegister(grpcMetrics)
-
-		grpcOpts := common_grpc.ServerOptionsWithInterceptors(
-			[]grpc.StreamServerInterceptor{grpcMetrics.StreamServerInterceptor()},
-			[]grpc.UnaryServerInterceptor{grpcMetrics.UnaryServerInterceptor()},
+		health := healthcheck.NewHandler()
+		srv, err := baseserver.New(grpcServerName,
+			baseserver.WithGRPC(&cfg.Service),
+			baseserver.WithMetricsRegistry(reg),
+			baseserver.WithHealthHandler(health),
+			baseserver.WithGRPCHealthService(grpc_health.NewServer()),
 		)
-		tlsOpt, err := cfg.Service.TLS.ServerOption()
 		if err != nil {
-			log.WithError(err).Fatal("cannot use TLS config")
-		}
-		if tlsOpt != nil {
-			log.WithField("crt", cfg.Service.TLS.Certificate).WithField("key", cfg.Service.TLS.PrivateKey).Debug("securing gRPC server with TLS")
-			grpcOpts = append(grpcOpts, tlsOpt)
-		} else {
-			log.Warn("no TLS configured - gRPC server will be unsecured")
+			log.WithError(err).Fatal("cannot set up server")
 		}
 
-		healthServer := health.NewServer()
+		common_grpc.SetupLogging()
+		dmn.Register(srv.GRPC())
 
-		server := grpc.NewServer(grpcOpts...)
-		server.RegisterService(&grpc_health_v1.Health_ServiceDesc, healthServer)
-
-		dmn.Register(server)
-		lis, err := net.Listen("tcp", cfg.Service.Addr)
-		if err != nil {
-			log.WithError(err).Fatalf("cannot listen on %s", cfg.Service.Addr)
-		}
-		go func() {
-			err := server.Serve(lis)
-			if err != nil {
-				log.WithError(err).Fatal("cannot start server")
-			}
-		}()
-		log.WithField("addr", cfg.Service.Addr).Info("started gRPC server")
-
-		if cfg.Prometheus.Addr != "" {
-			reg.MustRegister(
-				collectors.NewGoCollector(),
-				collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
-			)
-
-			handler := http.NewServeMux()
-			handler.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
-
-			go func() {
-				err := http.ListenAndServe(cfg.Prometheus.Addr, handler)
-				if err != nil {
-					log.WithError(err).Error("Prometheus metrics server failed")
-				}
-			}()
-			log.WithField("addr", cfg.Prometheus.Addr).Info("started Prometheus metrics server")
-		}
-
-		if cfg.PProf.Addr != "" {
-			go pprof.Serve(cfg.PProf.Addr)
-		}
-
-		if cfg.ReadinessProbeAddr != "" {
-			// Ensure we can access the GRPC server is healthy, the etc hosts file was updated and containerd is available.
-			health := healthcheck.NewHandler()
-			health.AddReadinessCheck("grpc-server", grpcProbe(cfg.Service))
-			health.AddReadinessCheck("ws-daemon", dmn.ReadinessProbe())
-
-			go func() {
-				if err := http.ListenAndServe(cfg.ReadinessProbeAddr, health); err != nil && err != http.ErrServerClosed {
-					log.WithError(err).Panic("error starting HTTP server")
-				}
-			}()
-		}
+		health.AddReadinessCheck("grpc-server", grpcProbe(cfg.Service))
+		health.AddReadinessCheck("ws-daemon", dmn.ReadinessProbe())
 
 		err = dmn.Start()
 		if err != nil {
@@ -130,17 +74,10 @@ var runCmd = &cobra.Command{
 
 		go config.Watch(configFile, dmn.ReloadConfig)
 
-		// run until we're told to stop
-		sigChan := make(chan os.Signal, 1)
-		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-		log.Info("🧫 ws-daemon is up and running. Stop with SIGINT or CTRL+C")
-		<-sigChan
-		server.Stop()
-		err = dmn.Stop()
+		err = srv.ListenAndServe()
 		if err != nil {
-			log.WithError(err).Error("cannot shut down gracefully")
+			log.Fatal(err)
 		}
-		log.Info("Received SIGINT - shutting down")
 	},
 }
 
@@ -148,14 +85,14 @@ func init() {
 	rootCmd.AddCommand(runCmd)
 }
 
-func grpcProbe(tlsConfig config.AddrTLS) func() error {
+func grpcProbe(cfg baseserver.ServerConfiguration) func() error {
 	return func() error {
 		secopt := grpc.WithInsecure()
-		if tlsConfig.TLS != nil && tlsConfig.TLS.Certificate != "" {
+		if cfg.TLS != nil && cfg.TLS.CertPath != "" {
 			tlsConfig, err := common_grpc.ClientAuthTLSConfig(
-				tlsConfig.TLS.Authority, tlsConfig.TLS.Certificate, tlsConfig.TLS.PrivateKey,
+				cfg.TLS.CAPath, cfg.TLS.CertPath, cfg.TLS.KeyPath,
 				common_grpc.WithSetRootCAs(true),
-				common_grpc.WithServerName("wsdaemon"),
+				common_grpc.WithServerName(grpcServerName),
 			)
 			if err != nil {
 				return xerrors.Errorf("cannot load ws-daemon certificate: %w", err)
@@ -167,7 +104,7 @@ func grpcProbe(tlsConfig config.AddrTLS) func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		conn, err := grpc.DialContext(ctx, tlsConfig.Addr, secopt)
+		conn, err := grpc.DialContext(ctx, cfg.Address, secopt)
 		if err != nil {
 			return err
 		}
