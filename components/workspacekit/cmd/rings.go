@@ -924,6 +924,7 @@ func connectToInWorkspaceDaemonService(ctx context.Context) (*inWorkspaceService
 		if _, err := os.Stat(socketFN); err == nil {
 			break
 		} else {
+			log.WithError(err).Warn("Failed to connect to ws-daemon")
 			errs = fmt.Errorf("%v; %w", errs, err)
 		}
 

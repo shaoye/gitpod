@@ -81,6 +81,7 @@ var (
 // ServeWorkspace establishes the IWS server for a workspace
 func ServeWorkspace(uidmapper *Uidmapper, fsshift api.FSShiftMethod, cgroupMountPoint string) func(ctx context.Context, ws *session.Workspace) error {
 	return func(ctx context.Context, ws *session.Workspace) (err error) {
+		start := time.Now()
 		if _, running := ws.NonPersistentAttrs[session.AttrWorkspaceServer]; running {
 			return nil
 		}
@@ -102,6 +103,8 @@ func ServeWorkspace(uidmapper *Uidmapper, fsshift api.FSShiftMethod, cgroupMount
 
 		log.WithFields(ws.OWI()).Debug("established IWS server")
 		ws.NonPersistentAttrs[session.AttrWorkspaceServer] = helper.Stop
+
+		log.Warnf("IWS Start: %d ms", time.Since(start).Milliseconds())
 
 		return nil
 	}

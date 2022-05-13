@@ -28,14 +28,14 @@ func workspaceLifecycleHooks(cfg Config, kubernetesNamespace string, workspaceEx
 	return map[session.WorkspaceState][]session.WorkspaceLivecycleHook{
 		session.WorkspaceInitializing: {
 			hookSetupWorkspaceLocation,
-			startIWS, // workspacekit is waiting for starting IWS, so it needs to start as soon as possible.
 			hookSetupRemoteStorage(cfg),
 			hookInstallQuota(xfs),
+			startIWS, // workspacekit is waiting for starting IWS, so it needs to start as soon as possible.
 		},
 		session.WorkspaceReady: {
-			startIWS,
 			hookSetupRemoteStorage(cfg),
 			hookInstallQuota(xfs),
+			startIWS,
 		},
 		session.WorkspaceDisposed: {
 			iws.StopServingWorkspace,
@@ -47,6 +47,7 @@ func workspaceLifecycleHooks(cfg Config, kubernetesNamespace string, workspaceEx
 // hookSetupRemoteStorage configures the remote storage for a workspace
 func hookSetupRemoteStorage(cfg Config) session.WorkspaceLivecycleHook {
 	return func(ctx context.Context, ws *session.Workspace) error {
+		start := time.Now()
 		if _, ok := ws.NonPersistentAttrs[session.AttrRemoteStorage]; !ws.RemoteStorageDisabled && !ok {
 			remoteStorage, err := storage.NewDirectAccess(&cfg.Storage)
 			if err != nil {
@@ -65,6 +66,7 @@ func hookSetupRemoteStorage(cfg Config) session.WorkspaceLivecycleHook {
 
 			ws.NonPersistentAttrs[session.AttrRemoteStorage] = remoteStorage
 		}
+		log.Warnf("SetupRemoteStorage %d ms", time.Since(start).Milliseconds())
 
 		return nil
 	}
@@ -72,6 +74,7 @@ func hookSetupRemoteStorage(cfg Config) session.WorkspaceLivecycleHook {
 
 // hookSetupWorkspaceLocation recreates the workspace location
 func hookSetupWorkspaceLocation(ctx context.Context, ws *session.Workspace) error {
+	start := time.Now()
 	location := ws.Location
 
 	// 1. Clean out the workspace directory
@@ -90,6 +93,9 @@ func hookSetupWorkspaceLocation(ctx context.Context, ws *session.Workspace) erro
 	if err != nil {
 		return xerrors.Errorf("cannot create workspace: %w", err)
 	}
+
+	log.Warnf("SetupWorkspaceLocation %d ms", time.Since(start).Milliseconds())
+
 	return nil
 }
 
@@ -116,7 +122,7 @@ func hookInstallQuota(xfs *quota.XFS) session.WorkspaceLivecycleHook {
 		}
 		ws.XFSProjectID = int(prj)
 
-		log.Warnf("%d ms", time.Since(start).Milliseconds())
+		log.Warnf("InstallQuota %d ms", time.Since(start).Milliseconds())
 
 		return nil
 	}
