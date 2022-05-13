@@ -333,6 +333,11 @@ func actOnPodEvent(ctx context.Context, m actingManager, status *api.WorkspaceSt
 				if err != nil {
 					log.WithError(err).Warn("was unable to mark workspace as failed")
 				}
+
+				// err = m.modifyFinalizer(ctx, workspaceID, gitpodFinalizerName, false)
+				// if err != nil {
+				// 	log.WithError(err).Error("cannot add gitpod finalizer")
+				// }
 			}
 		}()
 	}
