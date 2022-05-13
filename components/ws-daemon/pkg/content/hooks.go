@@ -7,6 +7,7 @@ package content
 import (
 	"context"
 	"os"
+	"time"
 
 	"github.com/gitpod-io/gitpod/common-go/log"
 	"github.com/gitpod-io/gitpod/content-service/pkg/initializer"
@@ -27,7 +28,7 @@ func workspaceLifecycleHooks(cfg Config, kubernetesNamespace string, workspaceEx
 	return map[session.WorkspaceState][]session.WorkspaceLivecycleHook{
 		session.WorkspaceInitializing: {
 			hookSetupWorkspaceLocation,
-			startIWS,
+			startIWS, // workspacekit is waiting for starting IWS, so it needs to start as soon as possible.
 			hookSetupRemoteStorage(cfg),
 			hookInstallQuota(xfs),
 		},
@@ -95,6 +96,7 @@ func hookSetupWorkspaceLocation(ctx context.Context, ws *session.Workspace) erro
 // hookInstallQuota enforces filesystem quota on the workspace location (if the filesystem supports it)
 func hookInstallQuota(xfs *quota.XFS) session.WorkspaceLivecycleHook {
 	return func(ctx context.Context, ws *session.Workspace) error {
+		start := time.Now()
 		if xfs == nil {
 			return nil
 		}
@@ -113,6 +115,8 @@ func hookInstallQuota(xfs *quota.XFS) session.WorkspaceLivecycleHook {
 			log.WithFields(ws.OWI()).WithError(err).Warn("cannot enforce workspace size limit")
 		}
 		ws.XFSProjectID = int(prj)
+
+		log.Warnf("%d ms", time.Since(start).Milliseconds())
 
 		return nil
 	}
