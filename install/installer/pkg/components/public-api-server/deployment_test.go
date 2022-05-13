@@ -4,9 +4,10 @@
 package public_api_server
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
-	"testing"
 )
 
 func TestDeployment(t *testing.T) {
@@ -32,11 +33,4 @@ func TestDeployment_ServerArguments(t *testing.T) {
 	dpl := objects[0].(*appsv1.Deployment)
 	containers := dpl.Spec.Template.Spec.Containers
 	require.Equal(t, Component, containers[0].Name)
-
-	apiContainer := containers[0]
-	require.EqualValues(t, []string{
-		"--debug-port=9000",
-		"--grpc-port=9001",
-		`--gitpod-api-url=wss://test.domain.everything.awesome.is/api/v1`,
-	}, apiContainer.Args)
 }
