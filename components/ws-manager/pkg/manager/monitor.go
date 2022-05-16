@@ -377,8 +377,16 @@ func actOnPodEvent(ctx context.Context, m actingManager, status *api.WorkspaceSt
 		}
 
 		_, alreadyFinalized := wso.Pod.Annotations[startedDisposalAnnotation]
-		if isFailed, ok := pod.Annotations[workspaceFailedBeforeStoppingAnnotation]; ok && isFailed == "true" && !alreadyFinalized {
+		if isFailed, ok := pod.Annotations[workspaceFailedBeforeStoppingAnnotation]; ok && isFailed == "true" && !alreadyFinalized && !isPodBeingDeleted(pod) {
 			if neverReady, ok := pod.Annotations[workspaceNeverReadyAnnotation]; ok && neverReady == "true" {
+				// err = m.markWorkspace(ctx, workspaceID, addMark(workspaceExplicitFailAnnotation, "workspace failed to start for some reason"))
+				// if err != nil {
+				// 	log.WithError(err).Warn("was unable to mark workspace as failed aa")
+				// }
+				err = m.markWorkspace(ctx, workspaceID, addMark(startedDisposalAnnotation, "true"))
+				if err != nil {
+					log.WithError(err).Warn("was unable to mark workspace as failed")
+				}
 				return m.modifyFinalizer(ctx, workspaceID, gitpodFinalizerName, false)
 			}
 		}
@@ -394,14 +402,6 @@ func actOnPodEvent(ctx context.Context, m actingManager, status *api.WorkspaceSt
 	if status.Phase == api.WorkspacePhase_STOPPED {
 		// we've disposed already - try to remove the finalizer and call it a day
 		return m.modifyFinalizer(ctx, workspaceID, gitpodFinalizerName, false)
-	}
-
-	if status.Phase == api.WorkspacePhase_PENDING {
-		if isFailed, ok := pod.Annotations[workspaceFailedBeforeStoppingAnnotation]; ok && isFailed == "true" {
-			if neverReady, ok := pod.Annotations[workspaceNeverReadyAnnotation]; ok && neverReady == "true" {
-				return m.modifyFinalizer(ctx, workspaceID, gitpodFinalizerName, false)
-			}
-		}
 	}
 
 	return nil
