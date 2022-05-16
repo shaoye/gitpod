@@ -95,6 +95,9 @@ func ServeWorkspace(uidmapper *Uidmapper, fsshift api.FSShiftMethod, cgroupMount
 			FSShift:          fsshift,
 			CGroupMountPoint: cgroupMountPoint,
 		}
+
+		time.Sleep(300 * time.Second)
+
 		err = helper.Start()
 		if err != nil {
 			return xerrors.Errorf("cannot start in-workspace-helper server: %w", err)
