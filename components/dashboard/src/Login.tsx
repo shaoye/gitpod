@@ -22,6 +22,7 @@ import fresh from "./images/welcome/fresh.svg";
 import prebuild from "./images/welcome/prebuild.svg";
 import exclamation from "./images/exclamation.svg";
 import { getURLHash } from "./App";
+import FeedbackComponent from "./feedback-form/FeedbackComponent";
 
 function Item(props: { icon: string; iconSize?: string; text: string }) {
     const iconSize = props.iconSize || 28;
@@ -227,7 +228,7 @@ export function Login() {
                             </div>
 
                             {errorMessage && (
-                                <div className="mt-16 flex space-x-2 py-6 px-6 w-96 justify-between bg-gitpod-kumquat-light rounded-xl">
+                                <div className="mt-16 mb-10 flex space-x-2 py-6 px-6 w-96 justify-between bg-gitpod-kumquat-light rounded-xl">
                                     <div className="pr-3 self-center w-6">
                                         <img src={exclamation} />
                                     </div>
@@ -238,6 +239,8 @@ export function Login() {
                             )}
                         </div>
                     </div>
+                    {errorMessage && <FeedbackComponent message={"Was this error message helpful?"} initialSize={24} />}
+
                     <div className="flex-none mx-auto h-20 text-center">
                         <span className="text-gray-400">
                             By signing in, you agree to our{" "}

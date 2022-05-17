@@ -11,9 +11,15 @@ import meh from "../images/feedback/meh-emoji.svg";
 import crying from "../images/feedback/crying-emoji.svg";
 import { trackEvent } from "../Analytics";
 
-function FeedbackComponent(props: { onClose: () => void; onSubmit: () => void }) {
+function FeedbackComponent(props: {
+    onClose?: () => void;
+    onSubmit?: () => void;
+    message?: string;
+    initialSize?: number;
+}) {
     const [text, setText] = useState<string>("");
     const [selectedEmoji, setSelectedEmoji] = useState<number | undefined>();
+    const [isFeedbackSubmitted, setIsFeedbackSubmitted] = useState<boolean>(false);
 
     const emojiScore: any = {
         starry: 4,
@@ -22,6 +28,12 @@ function FeedbackComponent(props: { onClose: () => void; onSubmit: () => void })
         crying: 1,
     };
 
+    const onClose = () => {
+        if (props.onClose) {
+            props.onClose();
+        }
+        setSelectedEmoji(undefined);
+    };
     const onSubmit = () => {
         if (selectedEmoji) {
             const feedbackObj = {
@@ -33,7 +45,11 @@ function FeedbackComponent(props: { onClose: () => void; onSubmit: () => void })
             trackEvent("feedback_submitted", feedbackObj);
         }
 
-        props.onSubmit();
+        if (props.onSubmit) {
+            props?.onSubmit();
+        }
+
+        setIsFeedbackSubmitted(true);
     };
 
     const handleClick = (target: any) => {
@@ -103,8 +119,9 @@ function FeedbackComponent(props: { onClose: () => void; onSubmit: () => void })
     };
     return (
         <>
-            <h3 className="mb-4">Send Feedback</h3>
-            {selectedEmoji ? (
+            {!props.message && <h3 className="border-b mb-4">Send Feedback</h3>}
+            {isFeedbackSubmitted && <h4 className="text-center">Thank you for your feedback.</h4>}
+            {!isFeedbackSubmitted && selectedEmoji && (
                 <div className="flex flex-col -mx-6 px-6 py-4 border-t border-b border-gray-200 dark:border-gray-800">
                     <div className="relative">
                         <div className="absolute flex bottom-5 right-5 gap-3">{emojiGroup(24)}</div>
@@ -144,7 +161,7 @@ function FeedbackComponent(props: { onClose: () => void; onSubmit: () => void })
                         </p>
                     </div>
                     <div className="flex justify-end mt-6">
-                        <button className="secondary" onClick={props.onClose}>
+                        <button className="secondary" onClick={onClose}>
                             Cancel
                         </button>
                         <button className="ml-2" onClick={onSubmit}>
@@ -152,11 +169,12 @@ function FeedbackComponent(props: { onClose: () => void; onSubmit: () => void })
                         </button>
                     </div>
                 </div>
-            ) : (
-                <div className="flex flex-col -mx-6 px-6 py-4 border-t border-gray-200 dark:border-gray-800">
-                    <h4 className="text-center text-xl mb-4">We'd love to know what you think!</h4>
+            )}
+            {!isFeedbackSubmitted && !selectedEmoji && (
+                <div className="flex flex-col -mx-6 px-6 py-4 border-gray-200 dark:border-gray-800">
+                    <h4 className="text-center text-xl">{props.message}</h4>
 
-                    <div className="flex items-center justify-center w-full space-x-3">{emojiGroup(50)}</div>
+                    <div className="flex items-center justify-center w-full">{emojiGroup(props.initialSize || 50)}</div>
                 </div>
             )}
         </>
