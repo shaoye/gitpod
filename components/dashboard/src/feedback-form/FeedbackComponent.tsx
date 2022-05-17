@@ -25,8 +25,8 @@ function FeedbackComponent(props: { onClose: () => void; onSubmit: () => void })
     const onSubmit = () => {
         if (selectedEmoji) {
             const feedbackObj = {
-                selectedEmoji,
-                text,
+                score: selectedEmoji,
+                feedback: text,
                 href: window.location.href,
                 path: window.location.pathname,
             };

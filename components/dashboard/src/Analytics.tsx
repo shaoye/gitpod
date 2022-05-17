@@ -31,8 +31,8 @@ export interface TrackDotfileRepo {
 }
 
 export interface TrackFeedback {
-    selectedEmoji: number;
-    text: string;
+    score: number;
+    feedback: string;
     href: string;
     path: string;
 }
