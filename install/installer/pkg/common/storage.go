@@ -60,6 +60,8 @@ func StorageConfig(context *RenderContext) storageconfig.StorageConfig {
 				Secure:              true,
 				Region:              context.Config.Metadata.Region,
 				ParallelUpload:      100,
+
+				BucketName: context.Config.ObjectStorage.S3.BucketName,
 			},
 		}
 	}
@@ -74,6 +76,8 @@ func StorageConfig(context *RenderContext) storageconfig.StorageConfig {
 				Secure:          false,
 				Region:          "local", // Local Minio requires this value - workspace allocation fails if not set to this
 				ParallelUpload:  6,
+
+				BucketName: context.Config.ObjectStorage.S3.BucketName,
 			},
 		}
 	}

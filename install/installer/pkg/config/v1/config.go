@@ -157,6 +157,8 @@ type ObjectStorage struct {
 type ObjectStorageS3 struct {
 	Endpoint    string    `json:"endpoint" validate:"required"`
 	Credentials ObjectRef `json:"credentials" validate:"required"`
+
+	BucketName string `json:"bucket"`
 }
 
 type ObjectStorageCloudStorage struct {
