@@ -16,6 +16,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/gitpod-io/gitpod/common-go/log"
 	"github.com/gitpod-io/gitpod/ws-daemon/api"
 	"github.com/gitpod-io/gitpod/ws-daemon/pkg/cgroup"
 	"github.com/gitpod-io/gitpod/ws-daemon/pkg/container"
@@ -202,16 +203,22 @@ func (d *Daemon) Stop() error {
 func (d *Daemon) ReadinessProbe() func() error {
 	return func() error {
 		if d.hosts != nil && !d.hosts.DidUpdate() {
-			return fmt.Errorf("host controller not ready yet")
+			err := fmt.Errorf("host controller not ready yet")
+			log.Errorf("ready probe failure: %v", err)
+			return err
 		}
 
 		isContainerdReady, err := d.dispatch.Runtime.IsContainerdReady(context.Background())
 		if err != nil {
-			return fmt.Errorf("containerd error: %v", err)
+			err := fmt.Errorf("containerd error: %v", err)
+			log.Errorf("ready probe failure: %v", err)
+			return err
 		}
 
 		if !isContainerdReady {
-			return fmt.Errorf("containerd is not ready")
+			err := fmt.Errorf("containerd is not ready")
+			log.Errorf("ready probe failure: %v", err)
+			return err
 		}
 
 		return nil
