@@ -334,6 +334,7 @@ func (m *Manager) extractStatusFromPod(result *api.WorkspaceStatus, wso workspac
 		return nil
 	}
 
+	log.Warnf("isPodBeingDeleted: %v", isPodBeingDeleted(pod))
 	if isPodBeingDeleted(pod) {
 		result.Phase = api.WorkspacePhase_STOPPING
 
@@ -342,6 +343,10 @@ func (m *Manager) extractStatusFromPod(result *api.WorkspaceStatus, wso workspac
 			// While the pod is being deleted we do not care or want to know about any failure state.
 			// If the pod got stopped because it failed we will have sent out a Stopping status with a "failure"
 			result.Conditions.Failed = ""
+		} else {
+			if _, ok := pod.Annotations[workspaceNeverReadyAnnotation]; ok {
+				result.Phase = api.WorkspacePhase_STOPPED
+			}
 		}
 
 		var hasFinalizer bool
@@ -351,6 +356,8 @@ func (m *Manager) extractStatusFromPod(result *api.WorkspaceStatus, wso workspac
 				break
 			}
 		}
+
+		log.Warnf("hasFinalizer: %v, %v", hasFinalizer, wso.Pod.Finalizers)
 		if !hasFinalizer {
 			// We do this independently of the dispostal status because pods only get their finalizer
 			// once they're running. If they fail before they reach the running phase we'll never see

@@ -974,6 +974,10 @@ func (m *Manager) onChange(ctx context.Context, status *api.WorkspaceStatus) {
 	// We attempt to use the GCP Error Reporting for this, hence log these situations as errors.
 	if status.Conditions.Failed != "" {
 		log.WithField("status", status).Error("workspace failed")
+		// err := m.markWorkspace(ctx, status.Id, addMark(workspaceExplicitFailAnnotation, status.Conditions.Failed))
+		// if err != nil {
+		// 	log.WithError(err).Error("was unable to mark workspace as failed aa")
+		// }
 	}
 	if status.Phase == 0 {
 		log.WithField("status", status).Error("workspace in UNKNOWN phase")

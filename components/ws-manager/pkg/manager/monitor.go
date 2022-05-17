@@ -229,6 +229,8 @@ func actOnPodEvent(ctx context.Context, m actingManager, status *api.WorkspaceSt
 	defer tracing.FinishSpan(span, &err)
 	log := log.WithFields(wsk8s.GetOWIFromObject(&pod.ObjectMeta))
 
+	log.Warnf("actOnPodEvent: %s", status.Phase.String())
+
 	workspaceID, ok := pod.Annotations[workspaceIDAnnotation]
 	if !ok {
 		return xerrors.Errorf("cannot act on pod %s: has no %s annotation", pod.Name, workspaceIDAnnotation)
@@ -357,12 +359,16 @@ func actOnPodEvent(ctx context.Context, m actingManager, status *api.WorkspaceSt
 	}
 
 	if status.Phase == api.WorkspacePhase_STOPPING {
+		_, alreadyFinalized := wso.Pod.Annotations[startedDisposalAnnotation]
 		if !isPodBeingDeleted(pod) {
+
 			// this might be the case if a headless workspace has just completed but has not been deleted by anyone, yet
 			err := m.stopWorkspace(ctx, workspaceID, stopWorkspaceNormallyGracePeriod)
 			if err != nil && !isKubernetesObjNotFoundError(err) {
 				return xerrors.Errorf("cannot stop workspace: %w", err)
 			}
+
+			log.Warnf("Finish stop workspace because of stopworkspace")
 			return nil
 		}
 
@@ -376,27 +382,33 @@ func actOnPodEvent(ctx context.Context, m actingManager, status *api.WorkspaceSt
 			}
 		}
 
-		_, alreadyFinalized := wso.Pod.Annotations[startedDisposalAnnotation]
-		if isFailed, ok := pod.Annotations[workspaceFailedBeforeStoppingAnnotation]; ok && isFailed == "true" && !alreadyFinalized && !isPodBeingDeleted(pod) {
-			if neverReady, ok := pod.Annotations[workspaceNeverReadyAnnotation]; ok && neverReady == "true" {
-				// err = m.markWorkspace(ctx, workspaceID, addMark(workspaceExplicitFailAnnotation, "workspace failed to start for some reason"))
-				// if err != nil {
-				// 	log.WithError(err).Warn("was unable to mark workspace as failed aa")
-				// }
-				err = m.markWorkspace(ctx, workspaceID, addMark(startedDisposalAnnotation, "true"))
-				if err != nil {
-					log.WithError(err).Warn("was unable to mark workspace as failed")
-				}
-				return m.modifyFinalizer(ctx, workspaceID, gitpodFinalizerName, false)
-			}
-		}
-
 		_, gone := wso.Pod.Annotations[wsk8s.ContainerIsGoneAnnotation]
 		if (terminated || gone) && !alreadyFinalized {
 			// We start finalizing the workspace content only after the container is gone. This way we ensure there's
 			// no process modifying the workspace content as we create the backup.
+			log.Warnf("Run Finalized content")
 			go m.finalizeWorkspaceContent(ctx, wso)
+			// if isFailed, ok := pod.Annotations[workspaceFailedBeforeStoppingAnnotation]; ok && isFailed == "true" && !alreadyFinalized {
+			// 	if neverReady, ok := pod.Annotations[workspaceNeverReadyAnnotation]; ok && neverReady == "true" {
+			// 		// if failMessage, ok := pod.Annotations[workspaceExplicitFailAnnotation]; ok && failMessage != "" {
+			// 		log.Warn("In Run finalizer!")
+			// 		// wso.Pod.Finalizers = nil
+			// 		err = m.markWorkspace(ctx, workspaceID, addMark(startedDisposalAnnotation, "true"))
+			// 		if err != nil {
+			// 			log.WithError(err).Warn("was unable to mark workspace as failed")
+			// 		}
+			// 		err := m.modifyFinalizer(ctx, workspaceID, gitpodFinalizerName, false)
+			// 		if err != nil {
+			// 			log.WithError(err).Warn("was unable to mark workspace as failed")
+			// 		}
+			// 		// }
+			// 	}
+			// } else {
+			// 	go m.finalizeWorkspaceContent(ctx, wso)
+			// }
 		}
+
+		log.Warnf("Finished stopping process")
 	}
 
 	if status.Phase == api.WorkspacePhase_STOPPED {
@@ -980,6 +992,26 @@ func (m *Monitor) finalizeWorkspaceContent(ctx context.Context, wso *workspaceOb
 	)
 	t := time.Now()
 	for i := 0; i < wsdaemonMaxAttempts; i++ {
+		log.Warn("attempt finalizer")
+		if isFailed, ok := wso.Pod.Annotations[workspaceFailedBeforeStoppingAnnotation]; ok && isFailed == "true" {
+			if neverReady, ok := wso.Pod.Annotations[workspaceNeverReadyAnnotation]; ok && neverReady == "true" {
+				// if failMessage, ok := pod.Annotations[workspaceExplicitFailAnnotation]; ok && failMessage != "" {
+				// log.Warn("In Run finalizer!")
+				// // wso.Pod.Finalizers = nil
+				// err = m.manager.markWorkspace(ctx, workspaceID, addMark(startedDisposalAnnotation, "true"))
+				// if err != nil {
+				// 	log.WithError(err).Warn("was unable to mark workspace as failed")
+				// }
+				err := m.manager.modifyFinalizer(ctx, workspaceID, gitpodFinalizerName, false)
+				if err != nil {
+					log.WithError(err).Warn("was unable to mark workspace as failed")
+				}
+				// }
+				log.Warn("did finalizer return!!!")
+				return
+			}
+		}
+
 		span.LogKV("attempt", i)
 		didSometing, gs, err := doFinalize()
 		if !didSometing {
